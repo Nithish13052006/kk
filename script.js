@@ -397,3 +397,161 @@
 
   goTo(0);
 })();
+
+
+/* ─────────────────────────────────────────
+   ABOUT SLIDER — horizontal image carousel
+   Supports arrows, dots, swipe/drag, responsive single slide view
+   ───────────────────────────────────────── */
+(function () {
+  'use strict';
+  var track = document.getElementById('about-slider-track');
+  var prevBtn = document.getElementById('about-slider-prev');
+  var nextBtn = document.getElementById('about-slider-next');
+  var dotsWr = document.getElementById('about-slider-dots');
+  var sliderWrapper = document.getElementById('about-slider');
+  if (!track || !sliderWrapper) return;
+
+  var slides = Array.from(track.children);
+  var slideCount = slides.length;
+  if (slideCount === 0) return;
+  var current = 0;
+  var isDragging = false;
+  var startX = 0;
+  var startScroll = 0;
+  var moved = 0;
+  var autoAdvanceTimer = null;
+
+  // Clear existing dots just in case
+  if (dotsWr) {
+    dotsWr.innerHTML = '';
+    slides.forEach(function (_, i) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.index = i;
+      btn.setAttribute('aria-label', 'Go to photo ' + (i + 1));
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        goTo(i);
+        restartAuto();
+      });
+      dotsWr.appendChild(btn);
+    });
+    updateDots();
+  }
+
+  function getSlideWidth() {
+    return sliderWrapper.clientWidth || track.clientWidth || window.innerWidth;
+  }
+
+  function goTo(index) {
+    if (index < 0) index = slideCount - 1;
+    if (index >= slideCount) index = 0;
+    current = index;
+    var slideW = getSlideWidth();
+    track.style.transition = 'transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)';
+    track.style.transform = 'translateX(-' + (current * slideW) + 'px)';
+    updateDots();
+  }
+
+  function updateDots() {
+    if (!dotsWr) return;
+    var buttons = dotsWr.querySelectorAll('button');
+    buttons.forEach(function (b, i) {
+      b.classList.toggle('is-active', i === current);
+    });
+  }
+
+  // Navigation Arrows
+  if (prevBtn) {
+    prevBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      goTo(current - 1);
+      restartAuto();
+    });
+  }
+  if (nextBtn) {
+    nextBtn.addEventListener('click', function (e) {
+      e.preventDefault();
+      goTo(current + 1);
+      restartAuto();
+    });
+  }
+
+  // Touch Swipe for Mobile & Mouse Drag
+  function onStart(e) {
+    if (e.target.closest('button')) return;
+    isDragging = true;
+    startX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+    var slideW = getSlideWidth();
+    startScroll = -current * slideW;
+    moved = 0;
+    track.style.transition = 'none';
+    stopAuto();
+  }
+
+  function onMove(e) {
+    if (!isDragging) return;
+    var currentX = e.type.startsWith('touch') ? e.touches[0].clientX : e.clientX;
+    moved = currentX - startX;
+    var newTranslate = startScroll + moved;
+    track.style.transform = 'translateX(' + newTranslate + 'px)';
+  }
+
+  function onEnd() {
+    if (!isDragging) return;
+    isDragging = false;
+    var slideW = getSlideWidth();
+    var threshold = Math.min(60, slideW * 0.15);
+    if (Math.abs(moved) > threshold) {
+      if (moved < 0) {
+        goTo(current + 1);
+      } else {
+        goTo(current - 1);
+      }
+    } else {
+      goTo(current);
+    }
+    restartAuto();
+  }
+
+  sliderWrapper.addEventListener('touchstart', onStart, { passive: true });
+  sliderWrapper.addEventListener('touchmove', onMove, { passive: true });
+  sliderWrapper.addEventListener('touchend', onEnd, { passive: true });
+
+  sliderWrapper.addEventListener('mousedown', onStart);
+  window.addEventListener('mousemove', onMove);
+  window.addEventListener('mouseup', onEnd);
+
+  // Auto Advance with pause on hover
+  function startAuto() {
+    stopAuto();
+    autoAdvanceTimer = setInterval(function () {
+      goTo(current + 1);
+    }, 4500);
+  }
+
+  function stopAuto() {
+    if (autoAdvanceTimer) {
+      clearInterval(autoAdvanceTimer);
+      autoAdvanceTimer = null;
+    }
+  }
+
+  function restartAuto() {
+    stopAuto();
+    startAuto();
+  }
+
+  sliderWrapper.addEventListener('mouseenter', stopAuto);
+  sliderWrapper.addEventListener('mouseleave', startAuto);
+
+  // Safe viewport resizing
+  window.addEventListener('resize', function () {
+    goTo(current);
+  }, { passive: true });
+
+  // Initial setup
+  goTo(0);
+  startAuto();
+})();
